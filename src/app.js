@@ -2,30 +2,39 @@ import express from "express";
 import { engine } from "express-handlebars";
 import path from "path";
 import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+import cors from "cors";
+import connectDB from "./config/db.js";
+import productRoutes from "./routes/productRoutes.js";
+import cartRoutes from "./routes/cartRoutes.js";
+import viewsRoutes from "./routes/viewsRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+dotenv.config(); // Load environment variables from .env file
+
 const app = express();
 
-// Configuración de Handlebars
+// Handlebars configuration
 app.engine("handlebars", engine());
 app.set("view engine", "handlebars");
 app.set("views", path.join(__dirname, "views"));
 
-// Middleware para archivos estáticos
+// Static files
 app.use(express.static(path.join(__dirname, "public")));
 
-// Resto de la configuración (cors, express.json, etc.)
+// Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json()); // Parse JSON request bodies
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded request bodies
 
-// Conexión a la base de datos
+// Database connection
 connectDB();
 
-// Rutas
+// Routes
 app.use("/api/products", productRoutes);
 app.use("/api/carts", cartRoutes);
-app.use("/", viewsRoutes); // Nuevo router para vistas
+app.use("/", viewsRoutes);
 
 export default app;
