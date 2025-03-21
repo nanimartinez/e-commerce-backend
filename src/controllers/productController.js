@@ -1,69 +1,47 @@
-import Product from "../models/Product";
+import {
+  getProducts as getProductsService,
+} from "../services/productService.js";
 
-// Obtener productos con filtros, paginación y ordenamiento
 export const getProducts = async (req, res) => {
   try {
-    const { page = 1, limit = 10, sort, category } = req.query;
-    const query = category ? { category } : {};
-    const options = {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      sort: sort ? { price: sort === "asc" ? 1 : -1 } : {},
-    };
+      const { page = 1, limit = 10, sort, category, availability } = req.query;
 
-    const products = await Product.paginate(query, options);
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+      // Construir el query de filtrado
+      const query = {};
+      if (category) query.category = category;
+      if (availability) query.stock = { $gt: 0 }; // Filtra productos con stock > 0
 
-// Obtener un producto por ID
-export const getProductById = async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: "Product not found" });
-    res.json(product);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+      // Opciones de paginación y ordenamiento
+      const options = {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          sort: sort ? { price: sort === "asc" ? 1 : -1 } : {},
+          lean: true,
+      };
 
-// Crear un producto
-export const createProduct = async (req, res) => {
-  try {
-    const newProduct = new Product(req.body);
-    await newProduct.save();
-    res.status(201).json(newProduct);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+      // Realizar la consulta con paginación usando el servicio
+      const products = await getProductsService(query, options);
 
-// Actualizar un producto
-export const updateProduct = async (req, res) => {
-  try {
-    const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    if (!updatedProduct)
-      return res.status(404).json({ message: "Product not found" });
-    res.json(updatedProduct);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+      // Construir la respuesta
+      const response = {
+          status: "success",
+          payload: products.docs,
+          totalPages: products.totalPages,
+          prevPage: products.prevPage,
+          nextPage: products.nextPage,
+          page: products.page,
+          hasPrevPage: products.hasPrevPage,
+          hasNextPage: products.hasNextPage,
+          prevLink: products.hasPrevPage
+              ? `/api/products?page=${products.prevPage}&limit=${limit}&sort=${sort}&category=${category}&availability=${availability}`
+              : null,
+          nextLink: products.hasNextPage
+              ? `/api/products?page=${products.nextPage}&limit=${limit}&sort=${sort}&category=${category}&availability=${availability}`
+              : null,
+      };
 
-// Eliminar un producto
-export const deleteProduct = async (req, res) => {
-  try {
-    const deletedProduct = await Product.findByIdAndDelete(req.params.id);
-    if (!deletedProduct)
-      return res.status(404).json({ message: "Product not found" });
-    res.json({ message: "Product deleted" });
+      res.json(response);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+      res.status(500).json({ status: "error", message: error.message });
   }
 };
